@@ -2,11 +2,6 @@
 
 package vaultapi
 
-import (
-	"sync"
-	"time"
-)
-
 type Tokener interface {
 	Token() string
 }

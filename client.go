@@ -5,17 +5,26 @@ package vaultapi
 import (
 	"crypto/tls"
 	"encoding/json"
-	"github.com/pkg/errors"
-	"github.com/shoenig/toolkit"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/shoenig/toolkit"
+)
+
+const (
+	headerVaultToken  = "X-Vault-Token"
+	headerContentType = "Content-Type"
+	mimeJSON          = "application/json"
+	mimeText          = "text/plain"
 )
 
 type Client interface {
+	KV
 }
 
 type ClientOptions struct {
@@ -24,8 +33,6 @@ type ClientOptions struct {
 	SkipTLSVerification bool
 	Logger              *log.Logger
 }
-
-type discard struct{}
 
 func New(opts ClientOptions, tokener Tokener) (Client, error) {
 	if opts.Logger == nil {
@@ -49,12 +56,18 @@ func New(opts ClientOptions, tokener Tokener) (Client, error) {
 }
 
 type client struct {
-	opts       ClientOptions
+	opts ClientOptions
+
 	tokener    Tokener
 	httpClient *http.Client
 }
 
-// params are url param kv pairs
+func (c *client) token() string {
+	// the tokener is responsible for locking
+	// its own token, whatever that means
+	return c.tokener.Token()
+}
+
 func fixup(prefix, path string, params ...[2]string) string {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
@@ -74,32 +87,114 @@ func fixup(prefix, path string, params ...[2]string) string {
 	if len(query) > 0 {
 		url += "?" + query
 	}
-
 	return url
 }
 
 func (c *client) get(path string, i interface{}) error {
 	for _, address := range c.opts.Servers {
 		if err := c.singleGet(address, path, i); err != nil {
-			c.opts.Logger.Println("[get] request failed: %v", err)
+			c.opts.Logger.Printf("GET request failed: %v", err)
 		} else {
 			return nil
 		}
-	}   
-	return errors.Errorf("[get] all get requests failed to: %v", c.opts.Servers)
+	}
+	return errors.Errorf("all attempts for GET request failed to: %v", c.opts.Servers)
 }
 
 func (c *client) singleGet(address, path string, i interface{}) error {
 	url := address + path
-	response, err := c.httpClient.Get(url)
+
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return errors.Wrapf(err, "failed to build GET request to %q", url)
+	}
+
+	request.Header.Set(headerVaultToken, c.token())
+	request.Header.Set(headerContentType, mimeText)
+
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return errors.Wrapf(err, "failed to execute GET request to %q", url)
+	}
+
+	defer toolkit.Drain(response.Body)
+
+	if response.StatusCode >= 400 {
+		return errors.Errorf("bad status code: %d, url: %s", response.StatusCode, url)
+	}
+
+	if err := json.NewDecoder(response.Body).Decode(i); err != nil {
+		return errors.Wrapf(err, "failed to read response from %q", url)
+	}
+
+	return nil
+}
+
+func (c *client) post(path string, body string) error {
+	for _, address := range c.opts.Servers {
+		if err := c.singlePost(address, path, body); err != nil {
+			c.opts.Logger.Printf("POST request failed: %v", err)
+		} else {
+			return nil
+		}
+	}
+	return errors.Errorf("all attempts for POST request failed to: %v", c.opts.Servers)
+}
+
+func (c *client) singlePost(address, path, body string) error {
+	url := address + path
+
+	request, err := http.NewRequest(http.MethodPost, url, strings.NewReader(body))
+	if err != nil {
+		return errors.Wrapf(err, "failed to build POST request to %q", url)
+	}
+
+	request.Header.Set(headerVaultToken, c.token())
+	request.Header.Set(headerContentType, mimeJSON)
+
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return errors.Wrapf(err, "failed to execute POST request to %q", url)
+	}
+
+	// do not read response
+	if response.StatusCode >= 400 {
+		return errors.Errorf("bad status code: %d, url: %s", response.StatusCode, url)
+	}
+
+	return nil
+}
+
+func (c *client) delete(path string) error {
+	for _, address := range c.opts.Servers {
+		if err := c.singleDelete(address, path); err != nil {
+			c.opts.Logger.Printf("DELETE request failed: %v", err)
+		} else {
+			return nil
+		}
+	}
+	return errors.Errorf("all attempts for DELETE request failed to: %v", c.opts.Servers)
+}
+
+func (c *client) singleDelete(address, path string) error {
+	url := address + path
+
+	request, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return err
 	}
-	defer toolkit.Drain(response.Body)
+
+	request.Header.Set(headerVaultToken, c.token())
+
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return err
+	}
+	// do not read response
 
 	if response.StatusCode >= 400 {
 		return errors.Errorf("bad status code: %d", response.StatusCode)
 	}
 
-	return json.NewDecoder(response.Body).Decode(i)
+	return nil
 }

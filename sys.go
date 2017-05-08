@@ -103,6 +103,10 @@ func (c *client) Leader() (Leader, error) {
 	return leader, nil
 }
 
+type mountsWrapper struct {
+	Data Mounts `json:"data"`
+}
+
 type Mounts map[string]struct {
 	Type        string `json:"type"`
 	Description string `json:"description"`
@@ -114,13 +118,11 @@ type Mounts map[string]struct {
 }
 
 func (c *client) ListMounts() (Mounts, error) {
-	// of course, these idiots dump arbitrary garbage right next
-	// to structured json for the mount definitions, so we have to
-	// extract those instead of letting the json decoder do all the
-	// work.
-	var mounts Mounts
-	if err := c.get("/v1/sys/mounts", &mounts); err != nil {
+	// documentation is incorrect, must use the data field
+	// to get to mount information
+	var wrapper mountsWrapper
+	if err := c.get("/v1/sys/mounts", &wrapper); err != nil {
 		return nil, errors.Wrap(err, "failed to read mounts")
 	}
-	return mounts, nil
+	return wrapper.Data, nil
 }

@@ -3,9 +3,6 @@
 package vaultapi
 
 import (
-	"github.com/stretchr/testify/require"
-
-	"io/ioutil"
 	"log"
 	"os"
 	"testing"
@@ -28,10 +25,7 @@ func cleanup(t *testing.T, client Client) {
 
 // a tokener that reads the token from /tmp/dev-vault.token
 func devTokener(t *testing.T) Tokener {
-	bs, err := ioutil.ReadFile("/tmp/dev-vault.token")
-	require.NoError(t, err)
-	token := string(bs)
-	return NewStaticToken(token)
+	return NewFileToken("/tmp/dev-vault.token")
 }
 
 func devOpts() ClientOptions {

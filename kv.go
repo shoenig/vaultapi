@@ -55,7 +55,7 @@ func (c *client) Get(path string) (string, error) {
 func (c *client) Put(path, value string) error {
 	fullpath := fixup("/v1/secret", path, [2]string{})
 	body := fmt.Sprintf(`{%q:%q}`, "value", value)
-	return c.post(fullpath, body)
+	return c.post(fullpath, body, nil)
 }
 
 func (c *client) Delete(path string) error {

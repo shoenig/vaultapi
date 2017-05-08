@@ -25,6 +25,7 @@ const (
 
 type Client interface {
 	KV
+	Sys
 }
 
 type ClientOptions struct {
@@ -62,7 +63,7 @@ type client struct {
 	httpClient *http.Client
 }
 
-func (c *client) token() string {
+func (c *client) token() (string, error) {
 	// the tokener is responsible for locking
 	// its own token, whatever that means
 	return c.tokener.Token()
@@ -109,7 +110,12 @@ func (c *client) singleGet(address, path string, i interface{}) error {
 		return errors.Wrapf(err, "failed to build GET request to %q", url)
 	}
 
-	request.Header.Set(headerVaultToken, c.token())
+	token, err := c.token()
+	if err != nil {
+		return errors.Wrap(err, "failed to get token for request")
+	}
+
+	request.Header.Set(headerVaultToken, token)
 	request.Header.Set(headerContentType, mimeText)
 
 	response, err := c.httpClient.Do(request)
@@ -130,9 +136,9 @@ func (c *client) singleGet(address, path string, i interface{}) error {
 	return nil
 }
 
-func (c *client) post(path string, body string) error {
+func (c *client) post(path, body string, i interface{}) error {
 	for _, address := range c.opts.Servers {
-		if err := c.singlePost(address, path, body); err != nil {
+		if err := c.singlePost(address, path, body, i); err != nil {
 			c.opts.Logger.Printf("POST request failed: %v", err)
 		} else {
 			return nil
@@ -141,7 +147,7 @@ func (c *client) post(path string, body string) error {
 	return errors.Errorf("all attempts for POST request failed to: %v", c.opts.Servers)
 }
 
-func (c *client) singlePost(address, path, body string) error {
+func (c *client) singlePost(address, path, body string, i interface{}) error {
 	url := address + path
 
 	request, err := http.NewRequest(http.MethodPost, url, strings.NewReader(body))
@@ -149,7 +155,12 @@ func (c *client) singlePost(address, path, body string) error {
 		return errors.Wrapf(err, "failed to build POST request to %q", url)
 	}
 
-	request.Header.Set(headerVaultToken, c.token())
+	token, err := c.token()
+	if err != nil {
+		return errors.Wrap(err, "failed to get token for request")
+	}
+
+	request.Header.Set(headerVaultToken, token)
 	request.Header.Set(headerContentType, mimeJSON)
 
 	response, err := c.httpClient.Do(request)
@@ -157,9 +168,16 @@ func (c *client) singlePost(address, path, body string) error {
 		return errors.Wrapf(err, "failed to execute POST request to %q", url)
 	}
 
-	// do not read response
 	if response.StatusCode >= 400 {
 		return errors.Errorf("bad status code: %d, url: %s", response.StatusCode, url)
+	}
+
+	if i != nil {
+		// only read response if we passed a thing to read it into
+		defer toolkit.Drain(response.Body)
+		if err := json.NewDecoder(response.Body).Decode(i); err != nil {
+			return errors.Wrapf(err, "failed to read response from %q", url)
+		}
 	}
 
 	return nil
@@ -184,7 +202,12 @@ func (c *client) singleDelete(address, path string) error {
 		return err
 	}
 
-	request.Header.Set(headerVaultToken, c.token())
+	token, err := c.token()
+	if err != nil {
+		return errors.Wrap(err, "failed to get token for request")
+	}
+
+	request.Header.Set(headerVaultToken, token)
 
 	response, err := c.httpClient.Do(request)
 	if err != nil {

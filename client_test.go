@@ -3,6 +3,7 @@
 package vaultapi
 
 import (
+	"github.com/stretchr/testify/require"
 	"log"
 	"os"
 	"testing"
@@ -14,13 +15,19 @@ import (
 
 func cleanup(t *testing.T, client Client) {
 	t.Log("-- cleaning up vault keyspace --")
-	//keys, err := client.Keys("/")
-	//require.NoError(t, err)
-	//
-	////for _, key := range keys {
-	//// err := client.Delete(key)
-	////require.NoError(t, err)
-	////}
+
+	// show keys at root before cleanup
+	keys, err := client.Keys("/")
+	require.NoError(t, err) // this will fail if no tests were run
+	t.Log("cleanup will recursively delete keys:", keys)
+
+	err = client.Delete("/")
+	t.Logf("error of deleting root key: %v", err)
+	require.NoError(t, err)
+
+	// assert no keys to list after cleaning up
+	_, err = client.Keys("/")
+	require.Error(t, err)
 }
 
 // a tokener that reads the token from /tmp/dev-vault.token

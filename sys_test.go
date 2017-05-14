@@ -52,5 +52,6 @@ func Test_Client_ListMounts(t *testing.T) {
 	client := getClient(t)
 	mounts, err := client.ListMounts()
 	require.NoError(t, err)
-	t.Log("mounts:", mounts)
+	require.Equal(t, "per-token private secret storage", mounts["cubbyhole/"].Description)
+	require.Equal(t, "generic secret storage", mounts["secret/"].Description)
 }

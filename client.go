@@ -183,7 +183,37 @@ func (c *client) singlePost(address, path, body string, i interface{}) error {
 	return nil
 }
 
+// we have to implement recursion ourselves - which will
+// be the case for paths that end in a trailing slash
+// see: https://github.com/hashicorp/vault/issues/885
 func (c *client) delete(path string) error {
+	c.opts.Logger.Printf("delete %q", path)
+	path = strings.TrimPrefix(path, "/v1/secrets/")
+
+	// recursively descend if this path is a directory
+	if strings.HasSuffix(path, "/") {
+		keys, err := c.Keys(path)
+		if err != nil {
+			c.opts.Logger.Printf("delete recursion error: %v", err)
+			return err
+		}
+		// call delete on every key under this path
+		for _, subpath := range keys {
+			if err := c.delete(path + subpath); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	} else {
+		// base case: actually delete this path, which is a concrete
+		// key and not a directory
+		c.opts.Logger.Printf("delete concrete path: %q", path)
+		return c.deleteKey(path)
+	}
+}
+
+func (c *client) deleteKey(path string) error {
 	for _, address := range c.opts.Servers {
 		if err := c.singleDelete(address, path); err != nil {
 			c.opts.Logger.Printf("DELETE request failed: %v", err)
@@ -195,7 +225,8 @@ func (c *client) delete(path string) error {
 }
 
 func (c *client) singleDelete(address, path string) error {
-	url := address + path
+	url := address + "/v1/secret" + path
+	c.opts.Logger.Printf("delete url: %q", url)
 
 	request, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
@@ -218,6 +249,7 @@ func (c *client) singleDelete(address, path string) error {
 	if response.StatusCode >= 400 {
 		return errors.Errorf("bad status code: %d", response.StatusCode)
 	}
+	c.opts.Logger.Printf("delete status code: %d", response.StatusCode)
 
 	return nil
 }

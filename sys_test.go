@@ -55,3 +55,35 @@ func Test_Client_ListMounts(t *testing.T) {
 	require.Equal(t, "per-token private secret storage", mounts["cubbyhole/"].Description)
 	require.Equal(t, "generic secret storage", mounts["secret/"].Description)
 }
+
+const pol1 = `
+# Allow a token to manage secret/foo/bar/* (no deletes)
+path "secret/foo/bar/*" {
+	capabilities = ["create", "read", "update", "list"]
+}`
+
+func Test_Client_Policies(t *testing.T) {
+	client := getClient(t)
+	policies, err := client.ListPolicies()
+	require.NoError(t, err)
+	t.Log("listPolicies:", policies)
+	require.Equal(t, 2, len(policies))
+
+	content, err := client.GetPolicy("default")
+	require.NoError(t, err)
+	require.Contains(t, content, "# Allow tokens to look up their own properties")
+
+	err = client.SetPolicy("foobar", pol1)
+	require.NoError(t, err)
+
+	content, err = client.GetPolicy("foobar")
+	require.NoError(t, err)
+	t.Log("foobar policy content:", content)
+	require.Contains(t, content, pol1)
+
+	err = client.DeletePolicy("foobar")
+	require.NoError(t, err)
+
+	_, err = client.GetPolicy("foobar")
+	require.Error(t, err)
+}

@@ -183,20 +183,62 @@ func (c *client) singlePost(address, path, body string, i interface{}) error {
 	return nil
 }
 
+func (c *client) put(path, body string) error {
+	for _, address := range c.opts.Servers {
+		if err := c.singlePut(address, path, body); err != nil {
+			c.opts.Logger.Printf("PUT request failed: %v", err)
+		} else {
+			return nil
+		}
+	}
+	return errors.Errorf("all attempts for PUT request failed to: %v", c.opts.Servers)
+}
+
+func (c *client) singlePut(address, path, body string) error {
+	url := address + path
+
+	request, err := http.NewRequest(http.MethodPut, url, strings.NewReader(body))
+	if err != nil {
+		return errors.Wrapf(err, "failed to build PUT request to %q", url)
+	}
+
+	token, err := c.token()
+	if err != nil {
+		return errors.Wrap(err, "failed to get token for request")
+	}
+
+	request.Header.Set(headerVaultToken, token)
+	request.Header.Set(headerContentType, mimeJSON)
+
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return errors.Wrapf(err, "failed to execute PUT request to %q", url)
+	}
+
+	// do not read response
+
+	if response.StatusCode >= 400 {
+		return errors.Errorf("bad status code: %d, url: %s", response.StatusCode, url)
+	}
+
+	return nil
+}
+
 // we have to implement recursion ourselves - which will
 // be the case for paths that end in a trailing slash
 // see: https://github.com/hashicorp/vault/issues/885
 func (c *client) delete(path string) error {
 	c.opts.Logger.Printf("delete %q", path)
-	path = strings.TrimPrefix(path, "/v1/secrets/")
+	noprefix := strings.TrimPrefix(path, "/v1/secret")
 
 	// recursively descend if this path is a directory
 	if strings.HasSuffix(path, "/") {
-		keys, err := c.Keys(path)
+		keys, err := c.Keys(noprefix)
 		if err != nil {
 			c.opts.Logger.Printf("delete recursion error: %v", err)
 			return err
 		}
+		c.opts.Logger.Print("recursive keys:", keys)
 		// call delete on every key under this path
 		for _, subpath := range keys {
 			if err := c.delete(path + subpath); err != nil {
@@ -225,7 +267,7 @@ func (c *client) deleteKey(path string) error {
 }
 
 func (c *client) singleDelete(address, path string) error {
-	url := address + "/v1/secret" + path
+	url := address + path
 	c.opts.Logger.Printf("delete url: %q", url)
 
 	request, err := http.NewRequest(http.MethodDelete, url, nil)

@@ -59,6 +59,6 @@ func (c *client) Put(path, value string) error {
 }
 
 func (c *client) Delete(path string) error {
-	fullpath := fixup("", path, [2]string{})
+	fullpath := fixup("/v1/secret", path, [2]string{})
 	return c.delete(fullpath)
 }

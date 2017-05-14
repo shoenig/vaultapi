@@ -18,6 +18,11 @@ type Sys interface {
 	Leader() (Leader, error)
 
 	ListMounts() (Mounts, error)
+
+	ListPolicies() ([]string, error)
+	GetPolicy(name string) (string, error)
+	SetPolicy(name, content string) error
+	DeletePolicy(name string) error
 }
 
 type capabilities struct {
@@ -125,4 +130,52 @@ func (c *client) ListMounts() (Mounts, error) {
 		return nil, errors.Wrap(err, "failed to read mounts")
 	}
 	return wrapper.Data, nil
+}
+
+type listPolicies struct {
+	Policies []string `json:"policies"`
+}
+
+func (c *client) ListPolicies() ([]string, error) {
+	var pols listPolicies
+	if err := c.get("/v1/sys/policy", &pols); err != nil {
+		return nil, errors.Wrap(err, "failed to list listPolicies")
+	}
+	sort.Strings(pols.Policies)
+	return pols.Policies, nil
+}
+
+type getPolicy struct {
+	Rules string `json:"rules"`
+}
+
+func (c *client) GetPolicy(name string) (string, error) {
+	var pol getPolicy
+	if err := c.get("/v1/sys/policy/"+name, &pol); err != nil {
+		return "", errors.Wrapf(err, "failed to get policy %q", name)
+	}
+	return pol.Rules, nil
+}
+
+func (c *client) SetPolicy(name, content string) error {
+	bs, err := json.Marshal(getPolicy{
+		Rules: content,
+	})
+
+	if err != nil {
+		return errors.Wrapf(err, "failed to create json for setting policy %q", name)
+	}
+
+	if err := c.put("/v1/sys/policy/"+name, string(bs)); err != nil {
+		return errors.Wrapf(err, "failed to set policy %q", name)
+	}
+
+	return nil
+}
+
+func (c *client) DeletePolicy(name string) error {
+	if err := c.delete("/v1/sys/policy/" + name); err != nil {
+		return errors.Wrapf(err, "failed to delete policy %q", name)
+	}
+	return nil
 }

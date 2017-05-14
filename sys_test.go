@@ -87,3 +87,17 @@ func Test_Client_Policies(t *testing.T) {
 	_, err = client.GetPolicy("foobar")
 	require.Error(t, err)
 }
+
+func Test_Client_SealStatus(t *testing.T) {
+	client := getClient(t)
+	status, err := client.SealStatus()
+	require.NoError(t, err)
+	require.Equal(t, 1, status.Shares)
+	require.False(t, status.Sealed)
+}
+
+func Test_Client_StepDown(t *testing.T) {
+	client := getClient(t)
+	err := client.StepDown()
+	t.Log("step down error:", err)
+}

@@ -16,7 +16,8 @@ type Sys interface {
 
 	Health() (Health, error)
 	Leader() (Leader, error)
-
+	StepDown() error
+	SealStatus() (SealStatus, error)
 	ListMounts() (Mounts, error)
 
 	ListPolicies() ([]string, error)
@@ -108,6 +109,13 @@ func (c *client) Leader() (Leader, error) {
 	return leader, nil
 }
 
+func (c *client) StepDown() error {
+	if err := c.put("/v1/sys/step-down", ""); err != nil {
+		return errors.Wrap(err, "failed to step down")
+	}
+	return nil
+}
+
 type mountsWrapper struct {
 	Data Mounts `json:"data"`
 }
@@ -178,4 +186,22 @@ func (c *client) DeletePolicy(name string) error {
 		return errors.Wrapf(err, "failed to delete policy %q", name)
 	}
 	return nil
+}
+
+type SealStatus struct {
+	Sealed      bool   `json:"sealed"`
+	Threshold   int    `json:"t"`
+	Shares      int    `json:"n"`
+	Progress    int    `json:"progress"`
+	Version     string `json:"version"`
+	ClusterName string `json:"cluster_name"`
+	ClusterID   string `json:"cluster_id"`
+}
+
+func (c *client) SealStatus() (SealStatus, error) {
+	var ss SealStatus
+	if err := c.get("/v1/sys/seal-status", &ss); err != nil {
+		return SealStatus{}, errors.Wrap(err, "failed to get sealed status")
+	}
+	return ss, nil
 }

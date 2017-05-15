@@ -101,3 +101,10 @@ func Test_Client_StepDown(t *testing.T) {
 	err := client.StepDown()
 	t.Log("step down error:", err)
 }
+
+func Test_Leases(t *testing.T) {
+	client := getClient(t)
+	leases, err := client.ListLeases("secret")
+	require.NoError(t, err)
+	t.Log("leases:", leases)
+}

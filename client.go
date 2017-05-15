@@ -21,11 +21,13 @@ const (
 	headerContentType = "Content-Type"
 	mimeJSON          = "application/json"
 	mimeText          = "text/plain"
+	methodLIST        = "LIST" // ffs
 )
 
 type Client interface {
 	KV
 	Sys
+	Auth
 }
 
 type ClientOptions struct {
@@ -136,6 +138,53 @@ func (c *client) singleGet(address, path string, i interface{}) error {
 	return nil
 }
 
+func (c *client) list(path string, i interface{}) error {
+	for _, address := range c.opts.Servers {
+		if err := c.singleList(address, path, i); err != nil {
+			c.opts.Logger.Printf("LIST request failed: %v", err)
+		} else {
+			return nil
+		}
+	}
+	return errors.Errorf("all attempts for LIST request failed to: %v", c.opts.Servers)
+}
+
+func (c *client) singleList(address, path string, i interface{}) error {
+	url := address + path
+
+	request, err := http.NewRequest(methodLIST, url, nil)
+	if err != nil {
+		return errors.Wrapf(err, "failed to build LIST request to: %q", url)
+	}
+
+	token, err := c.token()
+	if err != nil {
+		return errors.Wrap(err, "failed to get token for request")
+	}
+
+	request.Header.Set(headerVaultToken, token)
+	request.Header.Set(headerContentType, mimeJSON)
+
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return errors.Wrapf(err, "failed to execute LIST request to %q", url)
+	}
+
+	if response.StatusCode >= 400 {
+		return errors.Errorf("bad status code: %d, url: %s", response.StatusCode, url)
+	}
+
+	if i != nil {
+		// read the response iff we have something to unmarshal it into
+		defer toolkit.Drain(response.Body)
+		if err := json.NewDecoder(response.Body).Decode(i); err != nil {
+			return errors.Wrapf(err, "failed to read response from %q", url)
+		}
+	}
+
+	return nil
+}
+
 func (c *client) post(path, body string, i interface{}) error {
 	for _, address := range c.opts.Servers {
 		if err := c.singlePost(address, path, body, i); err != nil {
@@ -173,7 +222,7 @@ func (c *client) singlePost(address, path, body string, i interface{}) error {
 	}
 
 	if i != nil {
-		// only read response if we passed a thing to read it into
+		// read the response iff we have something to unmarshal it into
 		defer toolkit.Drain(response.Body)
 		if err := json.NewDecoder(response.Body).Decode(i); err != nil {
 			return errors.Wrapf(err, "failed to read response from %q", url)

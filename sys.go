@@ -5,6 +5,7 @@ package vaultapi
 import (
 	"encoding/json"
 	"sort"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -13,6 +14,9 @@ type Sys interface {
 	AccessorCapabilities(path, accessor string) ([]string, error)
 	TokenCapabilities(path, token string) ([]string, error)
 	SelfCapabilities(path string) ([]string, error)
+
+	ListLeases(prefix string) ([]string, error)
+	LookupLease(id string) (Lease, error)
 
 	Health() (Health, error)
 	Leader() (Leader, error)
@@ -40,7 +44,7 @@ func (c *client) TokenCapabilities(path, token string) ([]string, error) {
 	}
 	var caps capabilities
 	if err := c.post("/v1/sys/capabilities", string(bs), &caps); err != nil {
-		return nil, errors.Wrap(err, "failed to read token capabilities")
+		return nil, errors.Wrapf(err, "failed to read token capabilities for %q at %q", token, path)
 	}
 	sort.Strings(caps.Capabilities)
 	return caps.Capabilities, nil
@@ -56,7 +60,7 @@ func (c *client) AccessorCapabilities(path, accessor string) ([]string, error) {
 	}
 	var caps capabilities
 	if err := c.post("/v1/sys/capabilities-accessor", string(bs), &caps); err != nil {
-		return nil, errors.Wrap(err, "failed to read accessor capabilities")
+		return nil, errors.Wrapf(err, "failed to read accessor capabilities for %q at %q", accessor, path)
 	}
 	sort.Strings(caps.Capabilities)
 	return caps.Capabilities, nil
@@ -71,10 +75,44 @@ func (c *client) SelfCapabilities(path string) ([]string, error) {
 	}
 	var caps capabilities
 	if err := c.post("/v1/sys/capabilities-self", string(bs), &caps); err != nil {
-		return nil, errors.Wrap(err, "failed to read self token capabilities")
+		return nil, errors.Wrapf(err, "failed to read self token capabilities for %q", path)
 	}
 	sort.Strings(caps.Capabilities)
 	return caps.Capabilities, nil
+}
+
+func (c *client) ListLeases(prefix string) ([]string, error) {
+	var m map[string]map[string][]string
+	prefix = strings.TrimPrefix(prefix, "/")
+	if err := c.list("/v1/sys/leases/lookup/"+prefix, &m); err != nil {
+		return nil, errors.Wrapf(err, "failed to list leases under prefix %q", prefix)
+	}
+	leases := m["data"]["keys"]
+	sort.Strings(leases)
+	return leases, nil
+}
+
+type Lease struct {
+	ID              string `json:"id"`
+	IssueTime       string `json:"issue_time"`
+	ExpireTime      string `json:"expire_time"`
+	LastRenewalTime string `json:"last_renewal_time"`
+	Renewable       bool   `json:"renewable"`
+	TTL             int    `json:"ttl"`
+}
+
+func (c *client) LookupLease(id string) (Lease, error) {
+	bs, err := json.Marshal(struct {
+		ID string `json:"lease_id"`
+	}{ID: id})
+	if err != nil {
+		return Lease{}, err
+	}
+	var lease Lease
+	if err := c.put("/v1/sys/leases/lookup", string(bs)); err != nil {
+		return Lease{}, errors.Wrapf(err, "failed to lookup lease for %q", id)
+	}
+	return lease, nil
 }
 
 type Health struct {

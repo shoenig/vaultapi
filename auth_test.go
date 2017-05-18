@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_CreateToken(t *testing.T) {
+func Test_AuthToken(t *testing.T) {
 	client := getClient(t)
 	opts := TokenOptions{
-		Policies:    []string{"default", "herp"},
+		Policies:    []string{"default"},
 		Orphan:      true,
 		Renewable:   true,
 		DisplayName: "test-token1",
@@ -28,4 +28,8 @@ func Test_CreateToken(t *testing.T) {
 	lookedUp, err := client.LookupToken(token.ID)
 	require.NoError(t, err)
 	t.Log("looked up:", lookedUp)
+
+	renewed, err := client.RenewToken(token.ID, 1*time.Minute)
+	require.NoError(t, err)
+	t.Log("renewed:", renewed)
 }

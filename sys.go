@@ -5,7 +5,6 @@ package vaultapi
 import (
 	"encoding/json"
 	"sort"
-	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -15,7 +14,7 @@ type Sys interface {
 	TokenCapabilities(path, token string) ([]string, error)
 	SelfCapabilities(path string) ([]string, error)
 
-	ListLeases(prefix string) ([]string, error)
+	// ListLeases(prefix string) ([]string, error)
 	LookupLease(id string) (Lease, error)
 
 	Health() (Health, error)
@@ -81,16 +80,18 @@ func (c *client) SelfCapabilities(path string) ([]string, error) {
 	return caps.Capabilities, nil
 }
 
-func (c *client) ListLeases(prefix string) ([]string, error) {
-	var m map[string]map[string][]string
-	prefix = strings.TrimPrefix(prefix, "/")
-	if err := c.list("/v1/sys/leases/lookup/"+prefix, &m); err != nil {
-		return nil, errors.Wrapf(err, "failed to list leases under prefix %q", prefix)
-	}
-	leases := m["data"]["keys"]
-	sort.Strings(leases)
-	return leases, nil
-}
+// todo: figure out what the hashicorp library is doing,
+// because this does not seem to work at all
+//func (c *client) ListLeases(prefix string) ([]string, error) {
+//	var m map[string]map[string][]string
+//	prefix = strings.TrimPrefix(prefix, "/")
+//	if err := c.list("/v1/sys/leases/lookup/"+prefix, &m); err != nil {
+//		return nil, errors.Wrapf(err, "failed to list leases under prefix %q", prefix)
+//	}
+//	leases := m["data"]["keys"]
+//	sort.Strings(leases)
+//	return leases, nil
+//}
 
 type Lease struct {
 	ID              string `json:"id"`

@@ -24,6 +24,9 @@ const (
 	methodLIST        = "LIST" // ffs
 )
 
+// mocks generated with github.com/vektra/mockery
+//go:generate mockery -name Client -case=underscore -outpkg vaultapitest -output vaultapitest
+
 type Client interface {
 	KV
 	Sys

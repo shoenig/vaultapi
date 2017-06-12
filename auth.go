@@ -25,6 +25,7 @@ type Auth interface {
 	// ListAccessors() ([]string, error)
 	CreateToken(opts TokenOptions) (CreatedToken, error)
 	LookupToken(id string) (LookedUpToken, error)
+	LookupSelfToken() (LookedUpToken, error)
 	RenewToken(id string, increment time.Duration) (RenewedToken, error)
 }
 
@@ -106,6 +107,15 @@ func (c *client) LookupToken(id string) (LookedUpToken, error) {
 		return LookedUpToken{}, errors.Wrapf(err, "failed to lookup token")
 	}
 
+	return tok.Data, nil
+}
+
+func (c *client) LookupSelfToken() (LookedUpToken, error) {
+	var tok lookedUpTokenWrapper
+	if err := c.get("/v1/auth/token/lookup-self", &tok); err != nil {
+		// do not provide token id anywhere
+		return LookedUpToken{}, errors.Wrapf(err, "failed to lookup self token")
+	}
 	return tok.Data, nil
 }
 

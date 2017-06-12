@@ -27,7 +27,11 @@ func Test_AuthToken(t *testing.T) {
 
 	lookedUp, err := client.LookupToken(token.ID)
 	require.NoError(t, err)
-	t.Log("looked up:", lookedUp)
+	t.Log("token lookup:", lookedUp)
+
+	selfLookedUp, err := client.LookupSelfToken()
+	require.NoError(t, err)
+	t.Log("self token lookup:", selfLookedUp)
 
 	renewed, err := client.RenewToken(token.ID, 1*time.Minute)
 	require.NoError(t, err)

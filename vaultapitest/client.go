@@ -255,6 +255,27 @@ func (_m *Client) LookupLease(id string) (vaultapi.Lease, error) {
 	return r0, r1
 }
 
+// LookupSelfToken provides a mock function with given fields:
+func (_m *Client) LookupSelfToken() (vaultapi.LookedUpToken, error) {
+	ret := _m.Called()
+
+	var r0 vaultapi.LookedUpToken
+	if rf, ok := ret.Get(0).(func() vaultapi.LookedUpToken); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(vaultapi.LookedUpToken)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // LookupToken provides a mock function with given fields: id
 func (_m *Client) LookupToken(id string) (vaultapi.LookedUpToken, error) {
 	ret := _m.Called(id)

@@ -9,24 +9,31 @@ import (
 	"github.com/pkg/errors"
 )
 
+// A Sys represents the vault system interface.
+//
+// For more information about the system backend, visit:
+// https://www.vaultproject.io/api/system/index.html.
 type Sys interface {
+	// Capabilities
 	AccessorCapabilities(path, accessor string) ([]string, error)
 	TokenCapabilities(path, token string) ([]string, error)
 	SelfCapabilities(path string) ([]string, error)
 
-	// ListLeases(prefix string) ([]string, error)
+	// Leases
 	LookupLease(id string) (Lease, error)
 
+	// Policies
+	ListPolicies() ([]string, error)
+	GetPolicy(name string) (string, error)
+	SetPolicy(name, content string) error
+	DeletePolicy(name string) error
+
+	// Vault Status
 	Health() (Health, error)
 	Leader() (Leader, error)
 	StepDown() error
 	SealStatus() (SealStatus, error)
 	ListMounts() (Mounts, error)
-
-	ListPolicies() ([]string, error)
-	GetPolicy(name string) (string, error)
-	SetPolicy(name, content string) error
-	DeletePolicy(name string) error
 }
 
 type capabilities struct {
@@ -80,19 +87,11 @@ func (c *client) SelfCapabilities(path string) ([]string, error) {
 	return caps.Capabilities, nil
 }
 
-// todo: figure out what the hashicorp library is doing,
-// because this does not seem to work at all
-//func (c *client) ListLeases(prefix string) ([]string, error) {
-//	var m map[string]map[string][]string
-//	prefix = strings.TrimPrefix(prefix, "/")
-//	if err := c.list("/v1/sys/leases/lookup/"+prefix, &m); err != nil {
-//		return nil, errors.Wrapf(err, "failed to list leases under prefix %q", prefix)
-//	}
-//	leases := m["data"]["keys"]
-//	sort.Strings(leases)
-//	return leases, nil
-//}
-
+// A Lease is a piece of meta data around something in vault
+// which may be designed to expire at some time. A common example
+// is that every non-root token is associated with a lease which
+// indicates a TTL. Once the lease expires, that token is no longer
+// valid and cannot be used to authenticate with vault.
 type Lease struct {
 	ID              string `json:"id"`
 	IssueTime       string `json:"issue_time"`
@@ -116,6 +115,8 @@ func (c *client) LookupLease(id string) (Lease, error) {
 	return lease, nil
 }
 
+// A Health is returned upon requesting health status from vault
+// and contains some metadata about the vault configuartion.
 type Health struct {
 	Initialized   bool   `json:"initialized"`
 	Sealed        bool   `json:"sealed"`
@@ -134,6 +135,7 @@ func (c *client) Health() (Health, error) {
 	return health, nil
 }
 
+// A Leader is returned upon requesting the leader from vault.
 type Leader struct {
 	HAEnabled     bool   `json:"ha_enabled"`
 	IsSelf        bool   `json:"is_self"`
@@ -159,6 +161,13 @@ type mountsWrapper struct {
 	Data Mounts `json:"data"`
 }
 
+// Mounts contains information about the mounts currently configured
+// with vault. Generally, users of the vaultapi client library are
+// likely only concerned with the default backends that come with vault,
+// and will not need to be concerned with this API.
+//
+// More information can be found here:
+// https://www.vaultproject.io/docs/internals/architecture.html
 type Mounts map[string]struct {
 	Type        string `json:"type"`
 	Description string `json:"description"`
@@ -227,6 +236,11 @@ func (c *client) DeletePolicy(name string) error {
 	return nil
 }
 
+// A SealStatus is returned upon requesting the sealed status from
+// vault.
+//
+// More information about the vault seal mechanism can be found here:
+// https://www.vaultproject.io/docs/concepts/seal.html.
 type SealStatus struct {
 	Sealed      bool   `json:"sealed"`
 	Threshold   int    `json:"t"`

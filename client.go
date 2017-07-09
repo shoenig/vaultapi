@@ -27,20 +27,65 @@ const (
 // mocks generated with github.com/vektra/mockery
 //go:generate mockery -name Client -case=underscore -outpkg vaultapitest -output vaultapitest
 
+// A Client is used to communicate with vault. The interface is composed of
+// other interfaces, which reflect the different categories of API supported
+// by the vault server.
 type Client interface {
+	Auth
 	KV
 	Sys
-	Auth
 }
 
+var (
+	// ErrNoServers indicates that a Client was created with
+	// no URIs of vault servers to communicate with.
+	ErrNoServers = errors.New("no servers were provided")
+
+	// ErrInvalidHTTPTimeout indicates that a negative time.Duration
+	// was provided as a value for client HTTP timeouts.
+	ErrInvalidHTTPTimeout = errors.New("invalid HTTP timeout")
+)
+
+// ClientOptions are used to configure options of a Client
+// upon creation.
 type ClientOptions struct {
-	Servers             []string
-	HTTPTimeout         time.Duration
+	// Servers should be populated with complete URI including transport
+	// and port number of each of the vault servers that are running.
+	// An example URI: https://127.0.0.1:8200.
+	Servers []string
+
+	// HTTPTimeout configures how long underlying HTTP requests should
+	// wait before giving up and returning a timeout error. By default,
+	// this value is 10 seconds.
+	HTTPTimeout time.Duration
+
+	// SkipTLSVerification configures the underlying HTTP client
+	// to ignore any TLS certificate validation errors. This is a
+	// hacky option that can be used to work around environments that
+	// are using self-signed certificates. For best security practices
+	// do not use this option in production environments.
 	SkipTLSVerification bool
-	Logger              *log.Logger
+
+	// Logger may be optionally configured as an output for trace
+	// level logging produced by the Client. This can be helpful
+	// for debugging logic errors in client code.
+	Logger *log.Logger
 }
 
+// New creates a new Client that will connect to one or more vault
+// servers as specified by opts.Servers. The tokener is used to
+// aquire the token to be used to authenticate with vault. If
+// opts.Logger is not nil, trace output will be emitted to it which
+// can be helpful for debugging an application using the Client.
 func New(opts ClientOptions, tokener Tokener) (Client, error) {
+	if len(opts.Servers) == 0 {
+		return nil, ErrNoServers
+	}
+
+	if opts.HTTPTimeout < 0 {
+		return nil, ErrInvalidHTTPTimeout
+	}
+
 	if opts.Logger == nil {
 		opts.Logger = log.New(ioutil.Discard, "", 0)
 	}
@@ -299,12 +344,11 @@ func (c *client) delete(path string) error {
 		}
 
 		return nil
-	} else {
-		// base case: actually delete this path, which is a concrete
-		// key and not a directory
-		c.opts.Logger.Printf("delete concrete path: %q", path)
-		return c.deleteKey(path)
 	}
+	// base case: actually delete this path, which is a concrete
+	// key and not a directory
+	c.opts.Logger.Printf("delete concrete path: %q", path)
+	return c.deleteKey(path)
 }
 
 func (c *client) deleteKey(path string) error {

@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// A Tokener is something that can be used to aquire
-// a token for communicating with vault.
+// A Tokener provides a token that can be used to
+// authenticate with vault.
 type Tokener interface {
 	Token() (string, error)
 }
@@ -43,7 +43,6 @@ func NewFileToken(filename string) Tokener {
 }
 
 func (t *fileToken) Token() (string, error) {
-	// todo: ensure filename is readable only by user
 	bs, err := ioutil.ReadFile(t.filename)
 	return strings.TrimSpace(string(bs)), err
 }

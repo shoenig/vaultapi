@@ -9,6 +9,30 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Auth provides a way to manage what may be
+// authenticated to vault.
+//
+// For now, this API
+// supports only the token authentication
+// mechanism that is built into vault. Support
+// for additional types of authentication may
+// be added in future releases.
+//
+// More information about managing tokens via
+// the auth backend can be found here:
+// https://www.vaultproject.io/docs/auth/token.html
+type Auth interface {
+	CreateToken(opts TokenOptions) (CreatedToken, error)
+	LookupToken(id string) (LookedUpToken, error)
+	LookupSelfToken() (LookedUpToken, error)
+	RenewToken(id string, increment time.Duration) (RenewedToken, error)
+}
+
+// TokenOptions are used to define properties
+// of a token being created. More information
+// about the different options can be found in
+// the token documentation at:
+// https://www.vaultproject.io/docs/concepts/tokens.html
 type TokenOptions struct {
 	Policies        []string      `json:"policies,omitempty"`
 	NoDefaultPolicy bool          `json:"no_default_policy,omitempty"`
@@ -21,29 +45,14 @@ type TokenOptions struct {
 	Period          time.Duration `json:"period,omitmempty"`
 }
 
-type Auth interface {
-	// ListAccessors() ([]string, error)
-	CreateToken(opts TokenOptions) (CreatedToken, error)
-	LookupToken(id string) (LookedUpToken, error)
-	LookupSelfToken() (LookedUpToken, error)
-	RenewToken(id string, increment time.Duration) (RenewedToken, error)
-}
-
-// todo: does not seem to work
-//func (c *client) ListAccessors() ([]string, error) {
-//	var m map[string]map[string][]string
-//	if err := c.list("/auth/tokens/accessors", &m); err != nil {
-//		return nil, errors.Wrap(err, "failed to list accessors")
-//	}
-//	accessors := m["data"]["keys"]
-//	sort.Strings(accessors)
-//	return accessors, nil
-//}
-
 type createdToken struct {
 	Data CreatedToken `json:"auth"`
 }
 
+// A CreatedToken represents information returned from
+// vault after creating a token. The ID attribute is
+// the token itself; this is the value used to authenticate
+// with vault later on.
 type CreatedToken struct {
 	ID            string            `json:"client_token"`
 	Policies      []string          `json:"policies"`
@@ -73,16 +82,19 @@ func (c *client) CreateToken(opts TokenOptions) (CreatedToken, error) {
 	return ct.Data, nil
 }
 
+// A LookedUpToken represents information returned from
+// vault after making a request for information about
+// a particular token.
 type LookedUpToken struct {
+	ID           string   `json:"id"`
 	Accessor     string   `json:"accessor"`
 	CreationTime int      `json:"creation_time"`
 	CreationTTL  int      `json:"creation_ttl"`
 	DisplayName  string   `json:"display_name"`
 	MaxTTL       int      `json:"explicit_max_ttl"`
-	ID           string   `json:"id"`
 	NumUses      int      `json:"num_uses"`
 	Orphan       bool     `json:"orphan"`
-	Path         string   `json"path"`
+	Path         string   `json:"path"`
 	Policies     []string `json:"policies"`
 	TTL          int      `json:"ttl"`
 }
@@ -119,6 +131,9 @@ func (c *client) LookupSelfToken() (LookedUpToken, error) {
 	return tok.Data, nil
 }
 
+// A RenewedToken represents information returned from
+// vault after making a request to renew a periodic
+// token.
 type RenewedToken struct {
 	ClientToken   string   `json:"client_token"`
 	Accessor      string   `json:"accessor"`

@@ -1,0 +1,23 @@
+language: go
+
+go:
+  - 1.x
+
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install tree
+  
+install:
+  - 
+  - go get github.com/pkg/errors
+  - go get github.com/stretchr/testify
+  - go get github.com/shoenig/toolkit
+  - hack/travis-setup.sh
+
+before_script:
+  - hack/travis-run.sh
+
+script: 
+  - go build ./...
+  - go test ./...
+  - go test -race ./...

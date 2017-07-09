@@ -1,7 +1,7 @@
 # vaultapi
 A Go vault client for the rest of us
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/shoenig/vaultapi)](https://goreportcard.com/report/github.com/shoenig/vaultapi) [![GoDoc](https://godoc.org/github.com/shoenig/vaultapi?status.svg)](https://godoc.org/github.com/shoenig/vaultapi) [![License](https://img.shields.io/github/license/shoenig/vaultapi.svg?style=flat-square)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/shoenig/vaultapi)](https://goreportcard.com/report/github.com/shoenig/vaultapi) [![Build Status](https://travis-ci.org/shoenig/vaultapi.svg?branch=master)](https://travis-ci.org/shoenig/vaultapi) [![GoDoc](https://godoc.org/github.com/shoenig/vaultapi?status.svg)](https://godoc.org/github.com/shoenig/vaultapi) [![License](https://img.shields.io/github/license/shoenig/vaultapi.svg?style=flat-square)](LICENSE)
 
 ### About
 [vaultapi](https://github.com/shoenig/vaultapi) is a vault client library for Go programs, targeted at

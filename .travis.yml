@@ -8,7 +8,6 @@ before_install:
   - sudo apt-get install tree
   
 install:
-  - 
   - go get github.com/pkg/errors
   - go get github.com/stretchr/testify
   - go get github.com/shoenig/toolkit

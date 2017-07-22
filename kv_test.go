@@ -10,8 +10,7 @@ import (
 
 func Test_Client_KV(t *testing.T) {
 	opts := devOpts()
-	tokener := devTokener(t)
-	client, err := New(opts, tokener)
+	client, err := New(opts, rootTokener())
 	require.NoError(t, err)
 	defer cleanup(t, client)
 

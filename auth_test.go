@@ -10,11 +10,11 @@ import (
 )
 
 func Test_AuthToken(t *testing.T) {
-	client := getClient(t)
+	client := getClient(t, rootTokener)
 	opts := TokenOptions{
 		Policies:    []string{"default"},
 		Orphan:      true,
-		Renewable:   true,
+		Renewable:   false,
 		DisplayName: "test-token1",
 		MaxUses:     1000,
 		MaxTTL:      1 * time.Hour,
@@ -32,8 +32,34 @@ func Test_AuthToken(t *testing.T) {
 	selfLookedUp, err := client.LookupSelfToken()
 	require.NoError(t, err)
 	t.Log("self token lookup:", selfLookedUp)
+}
 
-	renewed, err := client.RenewToken(token.ID, 1*time.Minute)
+func Test_Renew_NonRenewable(t *testing.T) {
+	client := getClient(t, nonRenewableTokener)
+	token, err := nonRenewableTokener().Token()
 	require.NoError(t, err)
-	t.Log("renewed:", renewed)
+	lookedUp, err := client.LookupSelfToken()
+	require.NoError(t, err)
+	t.Log("non-renewable max ttl:", lookedUp.MaxTTL)
+	t.Log("non-renewable ttl:", lookedUp.TTL)
+
+	// this token does not have permission to use the
+	// general token renewal endpoint
+	_, err = client.RenewToken(token, 1*time.Second)
+	require.Error(t, err)
+}
+
+func Test_Renew_Renewable(t *testing.T) {
+	client := getClient(t, renewableTokener)
+	token, err := renewableTokener().Token()
+	require.NoError(t, err)
+	lookedUp, err := client.LookupSelfToken()
+	require.NoError(t, err)
+	t.Log("renewable max ttl:", lookedUp.MaxTTL)
+	t.Log("renewable ttl:", lookedUp.TTL)
+
+	// this token does not have permission to use the
+	// general token renewal endpoint
+	_, err = client.RenewToken(token, 1*time.Second)
+	require.Error(t, err)
 }

@@ -3,10 +3,11 @@
 package vaultapi
 
 import (
-	"github.com/stretchr/testify/require"
 	"log"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Running these tests requires running the vault defined in the hack/docker-compose.yaml file.
@@ -30,9 +31,17 @@ func cleanup(t *testing.T, client Client) {
 	require.Error(t, err)
 }
 
-// a tokener that reads the token from /tmp/dev-vault.token
-func devTokener(t *testing.T) Tokener {
-	return NewFileToken("/tmp/dev-vault.token")
+// a tokener for the root token to the dev vault
+func rootTokener() Tokener {
+	return NewFileToken("/tmp/root.token")
+}
+
+func nonRenewableTokener() Tokener {
+	return NewFileToken("/tmp/t1.token")
+}
+
+func renewableTokener() Tokener {
+	return NewFileToken("/tmp/t2.token")
 }
 
 func devOpts() ClientOptions {

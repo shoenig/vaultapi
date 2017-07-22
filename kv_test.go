@@ -3,9 +3,9 @@
 package vaultapi
 
 import (
-	"github.com/stretchr/testify/require"
-
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_Client_KV(t *testing.T) {

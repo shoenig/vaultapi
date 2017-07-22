@@ -4,6 +4,7 @@ package vaultapi
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -26,6 +27,7 @@ type Auth interface {
 	LookupToken(id string) (LookedUpToken, error)
 	LookupSelfToken() (LookedUpToken, error)
 	RenewToken(id string, increment time.Duration) (RenewedToken, error)
+	RenewSelfToken(increment time.Duration) (RenewedToken, error)
 }
 
 // TokenOptions are used to define properties
@@ -153,8 +155,24 @@ func (c *client) RenewToken(id string, increment time.Duration) (RenewedToken, e
 		return RenewedToken{}, err
 	}
 
-	if err := c.post("/v1/auth/token/renew", string(bs), &tok); err != nil {
+	inc := strconv.Itoa(int(increment.Seconds()))
+	path := fixup("/v1/auth", "token/renew", [2]string{"increment", inc})
+
+	if err := c.post(path, string(bs), &tok); err != nil {
 		return RenewedToken{}, errors.Wrapf(err, "failed to renew token")
+	}
+
+	return tok.Auth, nil
+}
+
+func (c *client) RenewSelfToken(increment time.Duration) (RenewedToken, error) {
+	var tok wrappedRenewedToken
+
+	inc := strconv.Itoa(int(increment.Seconds()))
+	path := fixup("/v1/auth", "token/renew-self", [2]string{"increment", inc})
+
+	if err := c.post(path, "", &tok); err != nil {
+		return RenewedToken{}, errors.Wrapf(err, "failed to self-renew token")
 	}
 
 	return tok.Auth, nil

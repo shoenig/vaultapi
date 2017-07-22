@@ -47,6 +47,15 @@ func Test_Renew_NonRenewable(t *testing.T) {
 	// general token renewal endpoint
 	_, err = client.RenewToken(token, 1*time.Second)
 	require.Error(t, err)
+
+	// this token was not created from a role that
+	// supports creating rewnewable tokens, and thus
+	// cannot be used to renew itself - however, vault
+	// does not return an error for trying to self renew
+	// a token that is not renewable
+	selfRenewed, err := client.RenewSelfToken(1 * time.Second)
+	require.NoError(t, err)
+	t.Log("non-renewable self token renewed lease duration:", selfRenewed.LeaseDuration)
 }
 
 func Test_Renew_Renewable(t *testing.T) {
@@ -62,4 +71,8 @@ func Test_Renew_Renewable(t *testing.T) {
 	// general token renewal endpoint
 	_, err = client.RenewToken(token, 1*time.Second)
 	require.Error(t, err)
+
+	selfRenewed, err := client.RenewSelfToken(1 * time.Second)
+	require.NoError(t, err)
+	t.Log("renewable self token renewed lease duration:", selfRenewed.LeaseDuration)
 }

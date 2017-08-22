@@ -44,6 +44,9 @@ var (
 	// ErrInvalidHTTPTimeout indicates that a negative time.Duration
 	// was provided as a value for client HTTP timeouts.
 	ErrInvalidHTTPTimeout = errors.New("invalid HTTP timeout")
+
+	// ErrPathNotFound indicates the requested path did not exist.
+	ErrPathNotFound = errors.New("requested path not found")
 )
 
 // ClientOptions are used to configure options of a Client
@@ -175,6 +178,12 @@ func (c *client) singleGet(address, path string, i interface{}) error {
 
 	defer toolkit.Drain(response.Body)
 
+	// special case 404, because we need to be able to explicitly identify
+	// cases where the requested path was not available.
+	if response.StatusCode == http.StatusNotFound {
+		return ErrPathNotFound
+	}
+
 	if response.StatusCode >= 400 {
 		return errors.Errorf("bad status code: %d, url: %s", response.StatusCode, url)
 	}
@@ -216,6 +225,12 @@ func (c *client) singleList(address, path string, i interface{}) error {
 	response, err := c.httpClient.Do(request)
 	if err != nil {
 		return errors.Wrapf(err, "failed to execute LIST request to %q", url)
+	}
+
+	// special case 404, because we need to be able to explicitly identify
+	// cases where the requested path was not available.
+	if response.StatusCode == http.StatusNotFound {
+		return ErrPathNotFound
 	}
 
 	if response.StatusCode >= 400 {
@@ -263,6 +278,12 @@ func (c *client) singlePost(address, path, body string, i interface{}) error {
 	response, err := c.httpClient.Do(request)
 	if err != nil {
 		return errors.Wrapf(err, "failed to execute POST request to %q", url)
+	}
+
+	// special case 404, because we need to be able to explicitly identify
+	// cases where the requested path was not available.
+	if response.StatusCode == http.StatusNotFound {
+		return ErrPathNotFound
 	}
 
 	if response.StatusCode >= 400 {
@@ -313,6 +334,12 @@ func (c *client) singlePut(address, path, body string) error {
 	}
 
 	// do not read response
+
+	// special case 404, because we need to be able to explicitly identify
+	// cases where the requested path was not available.
+	if response.StatusCode == http.StatusNotFound {
+		return ErrPathNotFound
+	}
 
 	if response.StatusCode >= 400 {
 		return errors.Errorf("bad status code: %d, url: %s", response.StatusCode, url)
@@ -383,6 +410,12 @@ func (c *client) singleDelete(address, path string) error {
 		return err
 	}
 	// do not read response
+
+	// special case 404, because we need to be able to explicitly identify
+	// cases where the requested path was not available.
+	if response.StatusCode == http.StatusNotFound {
+		return ErrPathNotFound
+	}
 
 	if response.StatusCode >= 400 {
 		return errors.Errorf("bad status code: %d", response.StatusCode)

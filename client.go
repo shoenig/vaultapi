@@ -146,7 +146,11 @@ func fixup(prefix, path string, params ...[2]string) string {
 
 func (c *client) get(path string, i interface{}) error {
 	for _, address := range c.opts.Servers {
-		if err := c.singleGet(address, path, i); err != nil {
+		err := c.singleGet(address, path, i)
+		if err == ErrPathNotFound {
+			c.opts.Logger.Printf("GET request for uknown path %q", path)
+			return ErrPathNotFound
+		} else if err != nil {
 			c.opts.Logger.Printf("GET request failed: %v", err)
 		} else {
 			return nil
@@ -197,11 +201,15 @@ func (c *client) singleGet(address, path string, i interface{}) error {
 
 func (c *client) list(path string, i interface{}) error {
 	for _, address := range c.opts.Servers {
-		if err := c.singleList(address, path, i); err != nil {
+		err := c.singleList(address, path, i)
+		if err == ErrPathNotFound {
+			c.opts.Logger.Printf("LIST request for unknown path: %q", path)
+			return ErrPathNotFound
+		} else if err != nil {
 			c.opts.Logger.Printf("LIST request failed: %v", err)
-		} else {
-			return nil
+			continue
 		}
+		return nil
 	}
 	return errors.Errorf("all attempts for LIST request failed to: %v", c.opts.Servers)
 }
@@ -250,11 +258,15 @@ func (c *client) singleList(address, path string, i interface{}) error {
 
 func (c *client) post(path, body string, i interface{}) error {
 	for _, address := range c.opts.Servers {
-		if err := c.singlePost(address, path, body, i); err != nil {
+		err := c.singlePost(address, path, body, i)
+		if err == ErrPathNotFound {
+			c.opts.Logger.Printf("POST request for unknown path: %q", path)
+			return ErrPathNotFound
+		} else if err != nil {
 			c.opts.Logger.Printf("POST request failed: %v", err)
-		} else {
-			return nil
+			continue
 		}
+		return nil
 	}
 	return errors.Errorf("all attempts for POST request failed to: %v", c.opts.Servers)
 }
@@ -303,11 +315,15 @@ func (c *client) singlePost(address, path, body string, i interface{}) error {
 
 func (c *client) put(path, body string) error {
 	for _, address := range c.opts.Servers {
-		if err := c.singlePut(address, path, body); err != nil {
+		err := c.singlePut(address, path, body)
+		if err == ErrPathNotFound {
+			c.opts.Logger.Printf("PUT request to unknown path: %q", path)
+			return ErrPathNotFound
+		} else if err != nil {
 			c.opts.Logger.Printf("PUT request failed: %v", err)
-		} else {
-			return nil
+			continue
 		}
+		return nil
 	}
 	return errors.Errorf("all attempts for PUT request failed to: %v", c.opts.Servers)
 }
@@ -380,11 +396,15 @@ func (c *client) delete(path string) error {
 
 func (c *client) deleteKey(path string) error {
 	for _, address := range c.opts.Servers {
-		if err := c.singleDelete(address, path); err != nil {
+		err := c.singleDelete(address, path)
+		if err == ErrPathNotFound {
+			c.opts.Logger.Printf("DELETE request to unknown path: %q", path)
+			continue
+		} else if err != nil {
 			c.opts.Logger.Printf("DELETE request failed: %v", err)
-		} else {
-			return nil
+			continue
 		}
+		return nil
 	}
 	return errors.Errorf("all attempts for DELETE request failed to: %v", c.opts.Servers)
 }

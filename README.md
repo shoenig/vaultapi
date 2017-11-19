@@ -35,3 +35,4 @@ client := vaultapi.New(options, tokener)
 leader, err := client.Leader()
 // etc ...
 ```
+

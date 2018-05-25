@@ -23,13 +23,13 @@ Creating a vault Client is very simple, just call `New` with the desired `Client
 tracer := log.New(os.Stdout, "vaultapi-", log.LstdFlags)
 options := vaultapi.ClientOptions{
     Servers: []string{"https://localhost:8200"},
-    HTTPTimeout: 10 * time.Seconds, // default
+    HTTPTimeout: 10 * time.Second, // default
     SkipTLSVerification: false, // default
     Logger: tracer,
 }
 
 tokener := vaultapi.NewStaticToken("abcdefgh-abcd-abcd-abcdefgh")
-client := vaultapi.New(options, tokener)
+client, err := vaultapi.New(options, tokener)
 // client implements the vaultapi.Client interface
 
 leader, err := client.Leader()

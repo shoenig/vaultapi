@@ -4,6 +4,7 @@ package vaultapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -28,6 +29,9 @@ type Auth interface {
 	LookupSelfToken() (LookedUpToken, error)
 	RenewToken(id string, increment time.Duration) (RenewedToken, error)
 	RenewSelfToken(increment time.Duration) (RenewedToken, error)
+	CreateTokenRole(data TokenRoleOptions) error
+	LookupTokenRole(name string) (LookedUpTokenRole, error)
+	DeleteTokenRole(name string) error
 }
 
 // TokenOptions are used to define properties
@@ -176,4 +180,63 @@ func (c *client) RenewSelfToken(increment time.Duration) (RenewedToken, error) {
 	}
 
 	return tok.Auth, nil
+}
+
+type TokenRoleOptions struct {
+	Name               string   `json:"role_name"`
+	AllowedPolicies    string   `json:"allowed_policies"`
+	DisallowedPolicies string   `json:"disallowed_policies"`
+	Orphan             bool     `json:"orphan"`
+	Period             string   `json:"period"`
+	Renewable          bool     `json:"renewable"`
+	ExplicitMaxTTL     int      `json:"explicit_max_ttl"`
+	PathSuffix         string   `json:"path_suffix"`
+	BoundCIDRs         []string `json:"bound_cidrs"`
+}
+
+func (c *client) CreateTokenRole(roleData TokenRoleOptions) error {
+	bs, err := json.Marshal(roleData)
+	if err != nil {
+		return errors.Wrap(err, "marshalling role data to JSON request body")
+	}
+	c.opts.Logger.Printf("role-create request: %v", string(bs))
+
+	requestPath := fmt.Sprintf("/v1/auth/token/roles/%s", roleData.Name)
+	if err := c.post(requestPath, string(bs), nil); err != nil {
+		return errors.Wrapf(err, "creating role at %q", requestPath)
+	}
+
+	return nil
+}
+
+type lookedUpTokenRoleWrapper struct {
+	Data LookedUpTokenRole `json:"data"`
+}
+
+type LookedUpTokenRole struct {
+	AllowedPolicies    []string `json:"allowed_policies"`
+	DisallowedPolicies []string `json:"disallowed_policies"`
+	ExplicitMaxTTL     int      `json:"explicit_max_ttl"`
+	Name               string   `json:"name"`
+	Orphan             bool     `json:"orphan"`
+	PathSuffix         string   `json:"path_suffix"`
+	Period             int      `json:"period"`
+	Renewable          bool     `json:"renewable"`
+}
+
+func (c *client) LookupTokenRole(name string) (LookedUpTokenRole, error) {
+	var lookedUpTokenRoleWrapper lookedUpTokenRoleWrapper
+	requestPath := fmt.Sprintf("/v1/auth/token/roles/%s", name)
+	if err := c.get(requestPath, &lookedUpTokenRoleWrapper); err != nil {
+		return LookedUpTokenRole{}, errors.Wrapf(err, "failed to look up role")
+	}
+	return lookedUpTokenRoleWrapper.Data, nil
+}
+
+func (c *client) DeleteTokenRole(name string) error {
+	requestPath := fmt.Sprintf("/v1/auth/token/roles/%s", name)
+	if err := c.delete(requestPath); err != nil {
+		return errors.Wrapf(err, "failed to delete role %q", name)
+	}
+	return nil
 }

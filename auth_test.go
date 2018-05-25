@@ -80,11 +80,10 @@ func Test_Renew_Renewable(t *testing.T) {
 }
 
 func Test_TokenRole(t *testing.T) {
-	roleName := "provisioner-role"
 	clientWithPerm := getClient(t, rootTokener)
 	clientWithoutPerm := getClient(t, renewableTokener)
 	roleOpts := TokenRoleOptions{
-		Name:               roleName,
+		Name:               "provisioner-role",
 		AllowedPolicies:    "p1,p2",
 		DisallowedPolicies: "p3,p4",
 		Orphan:             true,
@@ -98,9 +97,14 @@ func Test_TokenRole(t *testing.T) {
 	// Delete the role, in case it exists
 	require.NoError(t, clientWithPerm.DeleteTokenRole(roleOpts.Name))
 
+	// Make sure the role isn't in the list
+	roles, err := clientWithPerm.ListTokenRoles()
+	require.NoError(t, err)
+	require.Equal(t, []string{"my_role1"}, roles) // my_role1 already existed
+
 	// Can't create role without permission
 	require.Error(t, clientWithoutPerm.CreateTokenRole(roleOpts))
-	_, err := clientWithPerm.LookupTokenRole(roleOpts.Name)
+	_, err = clientWithPerm.LookupTokenRole(roleOpts.Name)
 	require.Equal(t, ErrPathNotFound, errors.Cause(err))
 
 	// Can create role with permission
@@ -112,6 +116,14 @@ func Test_TokenRole(t *testing.T) {
 	_, err = clientWithoutPerm.LookupTokenRole(roleOpts.Name)
 	require.Error(t, err)
 	require.Error(t, clientWithoutPerm.DeleteTokenRole(roleOpts.Name))
+
+	// Check listing roles
+	roles, err = clientWithoutPerm.ListTokenRoles()
+	require.Error(t, err)
+	require.Empty(t, roles)
+	roles, err = clientWithPerm.ListTokenRoles()
+	require.NoError(t, err)
+	require.Equal(t, []string{"my_role1", roleOpts.Name}, roles)
 
 	// Check that the correct role details came back
 	require.Equal(t, roleOpts.AllowedPolicies, strings.Join(lookedUpTokenRole.AllowedPolicies, ","))
@@ -131,4 +143,7 @@ func Test_TokenRole(t *testing.T) {
 	// Make sure it's really gone
 	_, err = clientWithPerm.LookupTokenRole(roleOpts.Name)
 	require.Equal(t, ErrPathNotFound, errors.Cause(err))
+	roles, err = clientWithPerm.ListTokenRoles()
+	require.NoError(t, err)
+	require.Equal(t, []string{"my_role1"}, roles)
 }

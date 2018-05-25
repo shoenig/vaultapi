@@ -5,6 +5,7 @@ package vaultapi
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -29,6 +30,7 @@ type Auth interface {
 	LookupSelfToken() (LookedUpToken, error)
 	RenewToken(id string, increment time.Duration) (RenewedToken, error)
 	RenewSelfToken(increment time.Duration) (RenewedToken, error)
+	ListTokenRoles() ([]string, error)
 	CreateTokenRole(data TokenRoleOptions) error
 	LookupTokenRole(name string) (LookedUpTokenRole, error)
 	DeleteTokenRole(name string) error
@@ -180,6 +182,24 @@ func (c *client) RenewSelfToken(increment time.Duration) (RenewedToken, error) {
 	}
 
 	return tok.Auth, nil
+}
+
+type rolesWrapper struct {
+	Data roles `json:"data"`
+}
+
+type roles struct {
+	Keys []string `json:"keys"`
+}
+
+func (c *client) ListTokenRoles() ([]string, error) {
+	var rolesWrapper rolesWrapper
+	requestPath := "/v1/auth/token/roles"
+	if err := c.list(requestPath, &rolesWrapper); err != nil {
+		return nil, errors.Wrapf(err, "failed to list token roles at %q", requestPath)
+	}
+	sort.Strings(rolesWrapper.Data.Keys)
+	return rolesWrapper.Data.Keys, nil
 }
 
 type TokenRoleOptions struct {

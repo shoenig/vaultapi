@@ -1,5 +1,3 @@
-// Author hoenig
-
 package vaultapi
 
 import (
@@ -8,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
 	"github.com/stretchr/testify/require"
 )
 

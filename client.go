@@ -1,5 +1,3 @@
-// Author hoenig
-
 package vaultapi
 
 import (
@@ -13,7 +11,10 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/shoenig/toolkit"
+
+	_ "github.com/shoenig/mockery3/v3"
+
+	"gophers.dev/pkgs/ignore"
 )
 
 const (
@@ -24,8 +25,7 @@ const (
 	methodLIST        = "LIST" // ffs
 )
 
-// mocks generated with github.com/vektra/mockery
-//go:generate mockery -name Client -case=underscore -outpkg vaultapitest -output vaultapitest
+//go:generate go run github.com/shoenig/mockery3/v3/cmd/mockery3 -interface Client -package vaultapitest
 
 // A Client is used to communicate with vault. The interface is composed of
 // other interfaces, which reflect the different categories of API supported
@@ -180,7 +180,7 @@ func (c *client) singleGet(address, path string, i interface{}) error {
 		return errors.Wrapf(err, "failed to execute GET request to %q", url)
 	}
 
-	defer toolkit.Drain(response.Body)
+	defer ignore.Drain(response.Body)
 
 	// special case 404, because we need to be able to explicitly identify
 	// cases where the requested path was not available.
@@ -247,7 +247,7 @@ func (c *client) singleList(address, path string, i interface{}) error {
 
 	if i != nil {
 		// read the response iff we have something to unmarshal it into
-		defer toolkit.Drain(response.Body)
+		defer ignore.Drain(response.Body)
 		if err := json.NewDecoder(response.Body).Decode(i); err != nil {
 			return errors.Wrapf(err, "failed to read response from %q", url)
 		}
@@ -304,7 +304,7 @@ func (c *client) singlePost(address, path, body string, i interface{}) error {
 
 	if i != nil {
 		// read the response iff we have something to unmarshal it into
-		defer toolkit.Drain(response.Body)
+		defer ignore.Drain(response.Body)
 		if err := json.NewDecoder(response.Body).Decode(i); err != nil {
 			return errors.Wrapf(err, "failed to read response from %q", url)
 		}

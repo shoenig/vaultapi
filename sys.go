@@ -1,5 +1,3 @@
-// Author hoenig
-
 package vaultapi
 
 import (
